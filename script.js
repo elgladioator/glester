@@ -1,187 +1,424 @@
-AOS.init({
-    duration: 800,
-    offset: 100,
-    once: true,
-    easing: 'ease-in-out-quad'
-});
+/* ==========================================================================
+   Gletser Indonesia — interactions
+   ========================================================================== */
 
-const menuToggle = document.getElementById('menuToggle');
-const navMenu = document.getElementById('navMenu');
+(function () {
+    'use strict';
 
-if (menuToggle) {
-    menuToggle.addEventListener('click', () => {
-        menuToggle.classList.toggle('active');
-        navMenu.classList.toggle('active');
-    });
+    var WA_NUMBER = '6281331112311';
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var finePointer = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
-    navMenu.querySelectorAll('a').forEach(link => {
-        link.addEventListener('click', () => {
-            menuToggle.classList.remove('active');
-            navMenu.classList.remove('active');
+    var waLink = function (message) {
+        return 'https://wa.me/' + WA_NUMBER + '?text=' + encodeURIComponent(message);
+    };
+
+    /* ---------------------------------------------------------------- Header */
+    var header = document.getElementById('siteHeader');
+    var menuToggle = document.getElementById('menuToggle');
+    var navMenu = document.getElementById('navMenu');
+    var navOverlay = document.getElementById('navOverlay');
+    var scrollBar = document.getElementById('scrollBar');
+    var toTop = document.getElementById('toTop');
+
+    function openNav() {
+        navMenu.classList.add('open');
+        navOverlay.classList.add('show');
+        menuToggle.setAttribute('aria-expanded', 'true');
+        menuToggle.setAttribute('aria-label', 'Tutup menu navigasi');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeNav() {
+        navMenu.classList.remove('open');
+        navOverlay.classList.remove('show');
+        menuToggle.setAttribute('aria-expanded', 'false');
+        menuToggle.setAttribute('aria-label', 'Buka menu navigasi');
+        document.body.style.overflow = '';
+    }
+
+    if (menuToggle && navMenu) {
+        menuToggle.addEventListener('click', function () {
+            if (navMenu.classList.contains('open')) {
+                closeNav();
+            } else {
+                openNav();
+            }
+        });
+
+        navOverlay.addEventListener('click', closeNav);
+
+        navMenu.querySelectorAll('a').forEach(function (link) {
+            link.addEventListener('click', closeNav);
+        });
+
+        document.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                closeNav();
+            }
+        });
+
+        window.addEventListener('resize', function () {
+            if (window.innerWidth > 920) {
+                closeNav();
+            }
+        });
+    }
+
+    /* ------------------------------------------------- Scroll progress / UI */
+    function onScroll() {
+        var top = window.scrollY || document.documentElement.scrollTop;
+        var height = document.documentElement.scrollHeight - window.innerHeight;
+
+        if (scrollBar) {
+            scrollBar.style.width = (height > 0 ? (top / height) * 100 : 0) + '%';
+        }
+
+        if (header) {
+            header.classList.toggle('scrolled', top > 8);
+        }
+
+        if (toTop) {
+            toTop.classList.toggle('show', top > 600);
+        }
+
+        updateActiveLink(top);
+    }
+
+    /* ------------------------------------------------------- Active nav link */
+    var sections = Array.prototype.slice.call(document.querySelectorAll('main section[id]'));
+    var navLinks = navMenu
+        ? Array.prototype.slice.call(navMenu.querySelectorAll('a[href^="#"]:not(.btn)'))
+        : [];
+
+    function updateActiveLink(scrollTop) {
+        if (!sections.length || !navLinks.length) {
+            return;
+        }
+
+        var offset = (header ? header.offsetHeight : 76) + 60;
+        var currentId = '';
+
+        sections.forEach(function (section) {
+            if (section.offsetTop <= scrollTop + offset) {
+                currentId = section.id;
+            }
+        });
+
+        navLinks.forEach(function (link) {
+            link.classList.toggle('active', link.getAttribute('href') === '#' + currentId);
+        });
+    }
+
+    if (toTop) {
+        toTop.addEventListener('click', function () {
+            window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+        });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    /* ------------------------------------------------------------- Reveals */
+    var revealItems = document.querySelectorAll('.reveal');
+
+    if ('IntersectionObserver' in window) {
+        var revealObserver = new IntersectionObserver(function (entries) {
+            entries.forEach(function (entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('in');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+        revealItems.forEach(function (item) {
+            revealObserver.observe(item);
+        });
+    } else {
+        revealItems.forEach(function (item) {
+            item.classList.add('in');
+        });
+    }
+
+    /* ------------------------------------------------------------ Counters */
+    var counters = document.querySelectorAll('[data-count]');
+
+    function animateCounter(element) {
+        var target = parseFloat(element.getAttribute('data-count'));
+        var duration = 1400;
+        var start = null;
+
+        function frame(now) {
+            if (start === null) {
+                start = now;
+            }
+
+            var progress = Math.min((now - start) / duration, 1);
+            var eased = 1 - Math.pow(1 - progress, 3);
+            element.textContent = Math.round(target * eased);
+
+            if (progress < 1) {
+                requestAnimationFrame(frame);
+            } else {
+                element.textContent = target;
+            }
+        }
+
+        requestAnimationFrame(frame);
+    }
+
+    if (counters.length) {
+        if ('IntersectionObserver' in window && !reduceMotion) {
+            var counterObserver = new IntersectionObserver(function (entries) {
+                entries.forEach(function (entry) {
+                    if (entry.isIntersecting) {
+                        animateCounter(entry.target);
+                        counterObserver.unobserve(entry.target);
+                    }
+                });
+            }, { threshold: 0.6 });
+
+            counters.forEach(function (counter) {
+                counterObserver.observe(counter);
+            });
+        } else {
+            counters.forEach(function (counter) {
+                counter.textContent = counter.getAttribute('data-count');
+            });
+        }
+    }
+
+    /* --------------------------------------------------------- Testimonials */
+    var testiSwiper = document.querySelector('.testi-swiper');
+
+    if (testiSwiper) {
+        if (typeof Swiper !== 'undefined') {
+            new Swiper('.testi-swiper', {
+                slidesPerView: 1,
+                spaceBetween: 18,
+                loop: true,
+                speed: reduceMotion ? 0 : 700,
+                grabCursor: true,
+                autoplay: reduceMotion ? false : {
+                    delay: 4500,
+                    disableOnInteraction: false,
+                    pauseOnMouseEnter: true
+                },
+                pagination: {
+                    el: '.testi-swiper .swiper-pagination',
+                    clickable: true
+                },
+                breakpoints: {
+                    700: { slidesPerView: 2 },
+                    1024: { slidesPerView: 3 }
+                }
+            });
+        } else {
+            testiSwiper.classList.add('swiper-fallback');
+        }
+    }
+
+    /* ------------------------------------------------------- FAQ accordion */
+    var faqItems = document.querySelectorAll('.faq-item');
+
+    function closeFaq(item) {
+        item.classList.remove('open');
+        var question = item.querySelector('.faq-q');
+        var answer = item.querySelector('.faq-a');
+
+        if (question) {
+            question.setAttribute('aria-expanded', 'false');
+        }
+
+        if (answer) {
+            answer.style.maxHeight = '';
+        }
+    }
+
+    faqItems.forEach(function (item) {
+        var question = item.querySelector('.faq-q');
+        var answer = item.querySelector('.faq-a');
+
+        if (!question || !answer) {
+            return;
+        }
+
+        question.addEventListener('click', function () {
+            var isOpen = item.classList.contains('open');
+
+            faqItems.forEach(function (other) {
+                if (other !== item) {
+                    closeFaq(other);
+                }
+            });
+
+            if (isOpen) {
+                closeFaq(item);
+            } else {
+                item.classList.add('open');
+                question.setAttribute('aria-expanded', 'true');
+                answer.style.maxHeight = answer.scrollHeight + 'px';
+            }
         });
     });
 
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.header')) {
-            menuToggle.classList.remove('active');
-            navMenu.classList.remove('active');
-        }
+    window.addEventListener('resize', function () {
+        document.querySelectorAll('.faq-item.open .faq-a').forEach(function (answer) {
+            answer.style.maxHeight = answer.scrollHeight + 'px';
+        });
     });
-}
 
-const swiper = new Swiper('.swiper', {
-    effect: 'slide',
-    speed: 800,
-    autoplay: {
-        delay: 4000,
-        disableOnInteraction: false,
-    },
-    pagination: {
-        el: '.swiper-pagination',
-        clickable: true,
-        dynamicBullets: true,
-    },
-    slidesPerView: 1,
-    spaceBetween: 20,
-    loop: true,
-    breakpoints: {
-        768: {
-            slidesPerView: 2,
-        },
-        1024: {
-            slidesPerView: 3,
+    /* --------------------------------------------------- Kebutuhan estimator */
+    var estimatorForm = document.getElementById('estimatorForm');
+
+    if (estimatorForm) {
+        var rangeInput = document.getElementById('kapasitas');
+        var rangeValue = document.getElementById('kapasitasVal');
+        var hint = document.getElementById('estimatorHint');
+        var segmentedLabels = Array.prototype.slice.call(
+            estimatorForm.querySelectorAll('.segmented label')
+        );
+
+        function formatTons(value) {
+            var text = value % 1 === 0 ? String(value) : String(value).replace('.', ',');
+            return text + ' ton';
         }
-    }
-});
 
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        const href = this.getAttribute('href');
-        if (href !== '#' && document.querySelector(href)) {
-            e.preventDefault();
-            const target = document.querySelector(href);
-            const headerHeight = document.querySelector('.header').offsetHeight;
-            const targetPosition = target.offsetTop - headerHeight;
-            
-            window.scrollTo({
-                top: targetPosition,
-                behavior: 'smooth'
+        function syncEstimator() {
+            var value = parseFloat(rangeInput.value);
+            var min = parseFloat(rangeInput.min);
+            var max = parseFloat(rangeInput.max);
+            var percent = ((value - min) / (max - min)) * 100;
+            var selected = estimatorForm.querySelector('input[name="jenis"]:checked');
+            var jenis = selected ? selected.value : 'Es Tube';
+
+            rangeValue.textContent = formatTons(value);
+            rangeInput.style.setProperty('--fill', percent + '%');
+
+            if (hint) {
+                hint.textContent = jenis === 'Belum yakin'
+                    ? 'Kami bantu pilih jenis es yang paling menguntungkan untuk bisnis Anda.'
+                    : 'Rekomendasi: Mesin ' + jenis + ' untuk kebutuhan \u00b1 ' + formatTons(value) + ' per hari.';
+            }
+
+            segmentedLabels.forEach(function (label) {
+                var input = label.querySelector('input');
+                label.classList.toggle('active', !!(input && input.checked));
             });
         }
-    });
-});
 
-const contactForm = document.querySelector('.contact-form');
-if (contactForm) {
-    contactForm.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const inputs = this.querySelectorAll('input, textarea');
-        const name = inputs[0].value.trim();
-        const email = inputs[1].value.trim();
-        const phone = inputs[2].value.trim();
-        const message = inputs[3].value.trim();
-        if (!name || !email || !phone || !message) {
-            alert('Mohon isi semua field');
-            return;
-        }
-        
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            alert('Mohon masukkan email yang valid');
-            return;
-        }
-        
-        if (phone.length < 10) {
-            alert('Mohon masukkan nomor telepon yang valid');
-            return;
-        }
-        
-        alert(`Terima kasih ${name}! Pesan Anda telah dikirim. Kami akan menghubungi Anda segera melalui email atau telepon.`);
-        this.reset();
-    });
-}
+        rangeInput.addEventListener('input', syncEstimator);
 
-const header = document.querySelector('.header');
-let lastScrollTop = 0;
+        estimatorForm.querySelectorAll('input[name="jenis"]').forEach(function (radio) {
+            radio.addEventListener('change', syncEstimator);
+        });
 
-window.addEventListener('scroll', () => {
-    let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-    
-    if (scrollTop > 50) {
-        header.style.boxShadow = '0 5px 25px rgba(0, 0, 0, 0.12)';
-        header.style.backgroundColor = 'rgba(255, 255, 255, 0.99)';
-    } else {
-        header.style.boxShadow = '0 2px 10px rgba(0, 0, 0, 0.05)';
-        header.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+        syncEstimator();
+
+        estimatorForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            var selected = estimatorForm.querySelector('input[name="jenis"]:checked');
+            var jenis = selected ? selected.value : 'Es Tube';
+            var kapasitas = formatTons(parseFloat(rangeInput.value));
+            var kotaInput = document.getElementById('kota');
+            var kota = kotaInput ? kotaInput.value.trim() : '';
+
+            var message = 'Halo Gletser Indonesia, saya ingin konsultasi mesin es.\n\n' +
+                '\u2022 Jenis es: ' + jenis + '\n' +
+                '\u2022 Estimasi kebutuhan: ' + kapasitas + ' per hari\n' +
+                (kota ? '\u2022 Lokasi pemasangan: ' + kota + '\n' : '') +
+                '\nMohon info harga dan rekomendasi kapasitas yang tepat. Terima kasih.';
+
+            window.open(waLink(message), '_blank', 'noopener');
+        });
     }
-    
-    lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
-});
 
-function animateCounter(element, target, duration = 1000) {
-    let current = 0;
-    const increment = target / (duration / 16);
-    
-    const updateCount = () => {
-        current += increment;
-        if (current < target) {
-            element.textContent = Math.floor(current);
-            requestAnimationFrame(updateCount);
-        } else {
-            element.textContent = target;
-        }
-    };
-    
-    updateCount();
-}
+    /* ---------------------------------------------------------- Contact form */
+    var contactForm = document.getElementById('contactForm');
 
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -50px 0px'
-};
+    if (contactForm) {
+        var formStatus = document.getElementById('formStatus');
 
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
-        }
-    });
-}, observerOptions);
+        contactForm.addEventListener('submit', function (event) {
+            event.preventDefault();
 
-document.querySelectorAll('.card, .product-card, .testimonial').forEach(el => {
-    el.style.opacity = '0';
-    el.style.transform = 'translateY(20px)';
-    el.style.transition = 'all 0.6s ease';
-    observer.observe(el);
-});
+            var nama = contactForm.querySelector('#nama').value.trim();
+            var telepon = contactForm.querySelector('#wa').value.trim();
+            var produk = contactForm.querySelector('#produk').value;
+            var pesan = contactForm.querySelector('#pesan').value.trim();
 
-document.querySelectorAll('.btn').forEach(button => {
-    button.addEventListener('click', function(e) {
-        const ripple = document.createElement('span');
-        const rect = this.getBoundingClientRect();
-        const size = Math.max(rect.width, rect.height);
-        const x = e.clientX - rect.left - size / 2;
-        const y = e.clientY - rect.top - size / 2;
-        
-        ripple.style.width = ripple.style.height = size + 'px';
-        ripple.style.left = x + 'px';
-        ripple.style.top = y + 'px';
-        ripple.classList.add('ripple');
-        
-        this.appendChild(ripple);
-        
-        setTimeout(() => ripple.remove(), 600);
-    });
-});
+            if (!nama || !telepon || !pesan) {
+                if (formStatus) {
+                    formStatus.style.color = '#dc2626';
+                    formStatus.textContent = 'Mohon lengkapi nama, nomor WhatsApp, dan pesan Anda.';
+                }
+                return;
+            }
 
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('✓ Gletser Indonesia - Landing page loaded successfully');
-    console.log('✓ All features initialized');
-    AOS.refresh();
-    if (window.performance && window.performance.timing) {
-        const pageLoadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
-        console.log(`Page load time: ${pageLoadTime}ms`);
+            if (telepon.replace(/[^0-9]/g, '').length < 9) {
+                if (formStatus) {
+                    formStatus.style.color = '#dc2626';
+                    formStatus.textContent = 'Nomor WhatsApp yang dimasukkan belum valid.';
+                }
+                return;
+            }
+
+            var message = 'Halo Gletser Indonesia, saya ' + nama + '.\n\n' +
+                '\u2022 Produk: ' + produk + '\n' +
+                '\u2022 WhatsApp: ' + telepon + '\n\n' +
+                pesan;
+
+            window.open(waLink(message), '_blank', 'noopener');
+
+            if (formStatus) {
+                formStatus.style.color = '';
+                formStatus.textContent = 'Terima kasih! WhatsApp sedang dibuka untuk menyelesaikan pengiriman pesan.';
+            }
+
+            contactForm.reset();
+        });
     }
-});
+
+    /* ---------------------------------------------------------- Ripple effect */
+    if (!reduceMotion) {
+        document.querySelectorAll('.btn').forEach(function (button) {
+            button.addEventListener('click', function (event) {
+                var rect = button.getBoundingClientRect();
+                var size = Math.max(rect.width, rect.height);
+                var ripple = document.createElement('span');
+
+                ripple.className = 'ripple';
+                ripple.style.width = size + 'px';
+                ripple.style.height = size + 'px';
+                ripple.style.left = (event.clientX - rect.left - size / 2) + 'px';
+                ripple.style.top = (event.clientY - rect.top - size / 2) + 'px';
+
+                button.appendChild(ripple);
+                window.setTimeout(function () {
+                    ripple.remove();
+                }, 650);
+            });
+        });
+    }
+
+    /* --------------------------------------------------------- Hero parallax */
+    var heroTilt = document.getElementById('heroTilt');
+
+    if (heroTilt && finePointer && !reduceMotion) {
+        heroTilt.addEventListener('mousemove', function (event) {
+            var rect = heroTilt.getBoundingClientRect();
+            var x = (event.clientX - rect.left) / rect.width - 0.5;
+            var y = (event.clientY - rect.top) / rect.height - 0.5;
+
+            heroTilt.style.setProperty('--ry', (x * 7).toFixed(2));
+            heroTilt.style.setProperty('--rx', (-y * 7).toFixed(2));
+        });
+
+        heroTilt.addEventListener('mouseleave', function () {
+            heroTilt.style.setProperty('--ry', 0);
+            heroTilt.style.setProperty('--rx', 0);
+        });
+    }
+})();
