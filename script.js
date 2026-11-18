@@ -335,6 +335,193 @@
         });
     }
 
+    /* --------------------------------------------------------- Cold storage */
+    var coldSection = document.getElementById('paket-cold-storage');
+
+    if (coldSection) {
+        var COLD_TIERS = {
+            low: {
+                label: 'Low Budget',
+                panel: 'EPS',
+                condenser: 'Outdoor AC',
+                prices: { 1: 48000000, 2: 55000000, 3: 62000000, 5: 76000000 }
+            },
+            medium: {
+                label: 'Medium',
+                panel: 'EPS',
+                condenser: 'CDU',
+                prices: { 1: 64000000, 2: 71000000, 3: 78000000, 5: 92000000 }
+            },
+            premium: {
+                label: 'Premium',
+                panel: 'PIR',
+                condenser: 'CDU',
+                prices: { 1: 68000000, 2: 75000000, 3: 82000000, 5: 96000000 }
+            }
+        };
+
+        var COLD_CAPACITY = {
+            1: { dims: '200 \u00d7 150 \u00d7 250 cm', power: '1.300 watt', fan: '1 kipas', pk: '1,5 PK' },
+            2: { dims: '230 \u00d7 175 \u00d7 250 cm', power: '1.300 watt', fan: '1 kipas', pk: '1,5 PK' },
+            3: { dims: '230 \u00d7 230 \u00d7 250 cm', power: '1.700 watt', fan: '2 kipas', pk: '2 PK' },
+            5: { dims: '290 \u00d7 290 \u00d7 250 cm', power: '1.700 watt', fan: '2 kipas', pk: '2 PK' }
+        };
+
+        var coldLabels = Array.prototype.slice.call(
+            coldSection.querySelectorAll('.cs-picker .segmented label')
+        );
+        var coldHint = document.getElementById('csHint');
+        var coldCards = Array.prototype.slice.call(coldSection.querySelectorAll('[data-cs-tier]'));
+        var coldRows = Array.prototype.slice.call(coldSection.querySelectorAll('[data-cs-row]'));
+
+        function rupiah(value) {
+            return 'Rp' + String(value).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+
+        function juta(value) {
+            var amount = Math.round((value / 1000000) * 10) / 10;
+            return 'Rp' + String(amount).replace('.', ',') + ' juta';
+        }
+
+        function setColdText(card, selector, text) {
+            var element = card.querySelector(selector);
+
+            if (element) {
+                element.textContent = text;
+            }
+        }
+
+        function syncColdStorage() {
+            var checked = coldSection.querySelector('input[name="csKapasitas"]:checked');
+            var cap = checked ? parseInt(checked.value, 10) : 2;
+            var spec = COLD_CAPACITY[cap];
+
+            coldLabels.forEach(function (label) {
+                var input = label.querySelector('input');
+                label.classList.toggle('active', !!(input && input.checked));
+            });
+
+            coldCards.forEach(function (card) {
+                var tier = COLD_TIERS[card.getAttribute('data-cs-tier')];
+
+                if (!tier) {
+                    return;
+                }
+
+                var price = tier.prices[cap];
+
+                setColdText(card, '[data-cs-price]', rupiah(price));
+                setColdText(card, '[data-cs-cap]', cap);
+                setColdText(card, '[data-cs-perton]', '\u00b1 ' + juta(price / cap) + ' per ton');
+                setColdText(card, '[data-cs-panel]', tier.panel);
+                setColdText(card, '[data-cs-condenser]', tier.condenser + ' ' + spec.pk);
+                setColdText(card, '[data-cs-fan]', spec.fan);
+                setColdText(card, '[data-cs-power]', spec.power);
+                setColdText(card, '[data-cs-dims]', spec.dims);
+                setColdText(card, '[data-cs-cta]', 'Pesan ' + tier.label + ' ' + cap + ' ton');
+
+                var link = card.querySelector('[data-cs-link]');
+
+                if (link) {
+                    link.href = waLink(
+                        'Halo Gletser Indonesia, saya ingin order Cold Storage ' + tier.label + ' ' + cap +
+                        ' ton, harga ' + rupiah(price) + '. Mohon info ketersediaan dan jadwal pengiriman.'
+                    );
+                }
+            });
+
+            coldRows.forEach(function (row) {
+                row.classList.toggle('is-active', row.getAttribute('data-cs-row') === String(cap));
+            });
+
+            if (coldHint) {
+                coldHint.textContent = 'Kapasitas ' + cap + ' ton: ruang ' + spec.dims + ', daya ' +
+                    spec.power + '. Harga mulai ' + rupiah(COLD_TIERS.low.prices[cap]) + ' (Low Budget).';
+            }
+        }
+
+        coldSection.querySelectorAll('input[name="csKapasitas"]').forEach(function (radio) {
+            radio.addEventListener('change', syncColdStorage);
+        });
+
+        syncColdStorage();
+    }
+
+    /* ------------------------------------------------------ Offer countdown */
+    var countdowns = document.querySelectorAll('.js-countdown');
+
+    if (countdowns.length) {
+        var OFFER_KEY = 'gletser.coldStorageOfferDeadline';
+        var OFFER_DURATION = 24 * 60 * 60 * 1000;
+        var offerDeadline = 0;
+
+        try {
+            var cachedDeadline = parseInt(window.localStorage.getItem(OFFER_KEY), 10);
+
+            if (cachedDeadline > Date.now() && cachedDeadline - Date.now() <= OFFER_DURATION) {
+                offerDeadline = cachedDeadline;
+            }
+        } catch (error) {
+            offerDeadline = 0;
+        }
+
+        if (!offerDeadline) {
+            offerDeadline = Date.now() + OFFER_DURATION;
+
+            try {
+                window.localStorage.setItem(OFFER_KEY, String(offerDeadline));
+            } catch (error) {
+                // Storage can be blocked; the countdown still runs for this visit.
+            }
+        }
+
+        function padTime(value) {
+            return value < 10 ? '0' + value : String(value);
+        }
+
+        function renderCountdown() {
+            var remaining = offerDeadline - Date.now();
+
+            if (remaining <= 0) {
+                offerDeadline = Date.now() + OFFER_DURATION;
+
+                try {
+                    window.localStorage.setItem(OFFER_KEY, String(offerDeadline));
+                } catch (error) {
+                    // ignore storage failures
+                }
+
+                remaining = offerDeadline - Date.now();
+            }
+
+            var total = Math.floor(remaining / 1000);
+            var hours = padTime(Math.floor(total / 3600));
+            var minutes = padTime(Math.floor((total % 3600) / 60));
+            var seconds = padTime(total % 60);
+
+            countdowns.forEach(function (timer) {
+                var timeHours = timer.querySelector('[data-time="hours"]');
+                var timeMinutes = timer.querySelector('[data-time="minutes"]');
+                var timeSeconds = timer.querySelector('[data-time="seconds"]');
+
+                if (timeHours) {
+                    timeHours.textContent = hours;
+                }
+
+                if (timeMinutes) {
+                    timeMinutes.textContent = minutes;
+                }
+
+                if (timeSeconds) {
+                    timeSeconds.textContent = seconds;
+                }
+            });
+        }
+
+        renderCountdown();
+        window.setInterval(renderCountdown, 1000);
+    }
+
     /* ---------------------------------------------------------- Contact form */
     var contactForm = document.getElementById('contactForm');
 
